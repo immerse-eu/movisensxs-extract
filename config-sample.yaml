@@ -1,0 +1,23 @@
+# Sample Configuration for immerse-eu/movisensxs-extract
+# rename this file to config.yaml and enter/extend content below
+
+# Local directories
+localPaths:
+  basePath: C:/temp/movisensXS
+
+# UKER Nextcloud access
+nextcloud:
+  baseUrl: https://cloud.uk-erlangen.de/
+  username:
+  password:
+  basePath: IMMERSE/movisensXS
+
+# movisensXS access
+movisensXS:
+  baseUrl: https://xs.movisens.com/api/v2/studies/
+
+# IMMERSE Studies configured in movisensXS
+studies:
+  IMMERSE_T0_UK:
+    id:
+    apikey:
