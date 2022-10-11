@@ -5,16 +5,14 @@ import json
 import os
 import pandas as pd
 import zipfile
-import nextcloud_client
 import yaml
 
 # Read configuration file
 with open("config.yaml", "r") as f:
     config = yaml.load(f, Loader=yaml.FullLoader)
 
-# Create connection to UKER NextCloud
-nc = nextcloud_client.Client(config['nextcloud']['baseUrl'])
-nc.login(config['nextcloud']['username'], config['nextcloud']['password'])
+# Initialize dictionary for result status
+dictResults = {}
 
 for studyKey in config['studies']:
 
@@ -28,6 +26,13 @@ for studyKey in config['studies']:
 
     # Download study data in Excel format
     responseExcel = requests.get(studyUrl, headers={"Accept": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Authorization": 'ApiKey ' + config['studies'][studyKey]['apikey']})
+
+    # Log Result codes
+    dictStudyResult = {
+        "status_forms_json": responseJson.status_code,
+        "status_forms_excel": responseExcel.status_code
+    }
+    dictResults[studyKey] = dictStudyResult
 
     # Print status message for current study
     print(studyKey, config['studies'][studyKey]['id'], config['studies'][studyKey]['apikey'], studyUrl, 'Json: ', responseJson.status_code, "Excel: ", responseExcel.status_code)
@@ -43,18 +48,6 @@ for studyKey in config['studies']:
     with open(localStudyPath + '/' + studyKey + '.xlsx', "wb") as text_file:
         text_file.write(responseExcel.content)
 
-    # Check if a nextcloud directory already exists for the current study and create it if not
-    ncStudyPath = config['nextcloud']['basePath'] + '/' + studyKey
-    try:
-        fi = nc.file_info(ncStudyPath)
-        print(fi.is_dir())
-    except:
-        nc.mkdir(ncStudyPath)
-
-    # Upload the JSON- & Excel files into the study nextcloud directory
-    nc.put_file(ncStudyPath + '/' + studyKey + '.json', localStudyPath + '/' + studyKey + '.json')
-    nc.put_file(ncStudyPath + '/' + studyKey + '.xlsx', localStudyPath + '/' + studyKey + '.xlsx')
-
     # Generate URL for downloading participants of current study
     studyUrlProbands = config['movisensXS']['baseUrl'] + str(config['studies'][studyKey]['id']) + '/probands'
 
@@ -64,6 +57,7 @@ for studyKey in config['studies']:
     dfProbands = pd.json_normalize(jsonProbands)
 
     # Iterate over the participants of the current study for Unisens data
+    dictProbandResult = {}
     for indexProband, rowProband in dfProbands.iterrows():
 
         # Only query data for participants not in "uncoupled" state
@@ -74,6 +68,9 @@ for studyKey in config['studies']:
 
             # Download Unisens file for the current participant
             responseUnisens = requests.get(studyUrlUnisens, headers={"Authorization": 'ApiKey ' + config['studies'][studyKey]['apikey']})
+
+            # Log Result codes
+            dictProbandResult[rowProband['id']] = responseUnisens.status_code
 
             # Print status message for the current participant
             print('- ', rowProband['id'], studyUrlUnisens, 'Status: ', responseUnisens.status_code)
@@ -94,5 +91,8 @@ for studyKey in config['studies']:
                 with zipfile.ZipFile(unisensPath + '.zip', 'r') as zip_ref:
                     zip_ref.extractall(unisensPath)
 
-# Close NextCloud connection
-nc.logout()
+        # Log participant results
+        dictResults[studyKey]["unisens_status"] = dictProbandResult
+
+with open(config['localPaths']['basePath'] + "/export_results.yaml", 'w') as outfile:
+    yaml.dump(dictResults, outfile, default_flow_style=False)

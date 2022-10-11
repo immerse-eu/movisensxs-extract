@@ -5,13 +5,6 @@
 localPaths:
   basePath: C:/temp/movisensXS
 
-# UKER Nextcloud access
-nextcloud:
-  baseUrl: https://cloud.uk-erlangen.de/
-  username:
-  password:
-  basePath: IMMERSE/movisensXS
-
 # movisensXS access
 movisensXS:
   baseUrl: https://xs.movisens.com/api/v2/studies/
